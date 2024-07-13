@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Data Viewer</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <style>
+        .hidden {
+            display: none;
+        }
+        .result {
+            max-width: 80px;
+        }
+    </style>
+</head>
+<body>
+<div class="container mt-5">
+    <h1 class="text-center">Upload and View File Data</h1>
+    <div class="card card-body mb-3">
+        <form id="uploadForm">
+            <div class="form-group">
+                <label for="file">Choose file to upload</label>
+                <input type="file" id="file" name="file" class="form-control" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Upload</button>
+        </form>
+        <div class="result mt-3" id="result">
+            <h2>Result</h2>
+            <p id="resultText"></p>
+            <p id="fileIdText"></p>
+        </div>
+    </div>
+    <div class="card card-body mb-3">
+        <h2>Invoices</h2>
+        <table class="table table-dark">
+            <thead id="invoicesTableHead"></thead>
+            <tbody id="invoicesTableBody"></tbody>
+        </table>
+        <button class="btn btn-info" onclick="saveTableData('Invoices', $('#invoicesTableBody'))">Save Invoices</button>
+    </div>
+    <div class="card card-body mb-3">
+        <h2>Extracted Data</h2>
+        <table class="table table-dark">
+            <thead id="extractedDataTableHead"></thead>
+            <tbody id="extractedDataTableBody"></tbody>
+        </table>
+        <button class="btn btn-info" onclick="correctAndSave('ExtractedData')">Save Extracted Data</button>
+    </div>
+    <button id="generateXlsxButton" class="btn btn-primary btn-block hidden" onclick="generateUpdatedXlsx()">Generate Updated XLSX</button>
+</div>
+<script src="https://code.jquery.com/jquery-3.4.1.js"></script>
+<script>
+    $(document).ready(function () {
+        $('#uploadForm').on('submit', async function (e) {
+            e.preventDefault();
+            const fileInput = $('#file')[0];
+            const file = fileInput.files[0];
+            if (!file) return;
+    
+            const formData = new FormData();
+            formData.append('file', file);
+    
+            try {
+                const response = await fetch('http://127.0.0.1:8000/process_file/', {
+                    method: 'POST',
+                    body: formData
+                });
+    
+                if (!response.ok) {
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+    
+                const result = await response.json();
+                $('#resultText').text(JSON.stringify(result, null, 2));
+                $('#result').show();
+                $('#fileIdText').text(`File ID: ${result.file_id}`);
+    
+                await loadFileData(result.file_id);
+    
+                const downloadResponse = await fetch(`http://127.0.0.1:8000/${result.filename}`);
+                const blob = await downloadResponse.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = $('<a />', {
+                    'href': url,
+                    'download': result.filename
+                }).appendTo('body').get(0).click();
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error uploading file: ' + error.message);
+            }
+        });
+    
+        async function loadFileData(fileId) {
+            const response = await fetch(`http://127.0.0.1:8000/get_file_data/${fileId}`);
+            const data = await response.json();
+    
+            console.log('Data loaded from server:', data);
+
+            populateTable('invoicesTable', data.invoices, fileId);
+            populateTable('extractedDataTable', data.extracted_data, fileId);
+            $('#generateXlsxButton').removeClass('hidden');
+        }
+    
+        function populateTable(tableId, tableData, fileId) {
+            const tableHead = $(`#${tableId}Head`);
+            const tableBody = $(`#${tableId}Body`);
+    
+            console.log(`Populating table: ${tableId}`);
+            console.log('Table head element:', tableHead);
+            console.log('Table body element:', tableBody);
+
+            if (!tableHead.length || !tableBody.length) {
+                console.error(`Element with ID ${tableId}Head or ${tableId}Body not found`);
+                return;
+            }
+    
+            tableHead.empty();
+            tableBody.empty();
+    
+            const columns = tableData.columns;
+            const rows = tableData.data;
+    
+            let headRow = '<tr>';
+            columns.forEach(column => {
+                headRow += `<th>${column}</th>`;
+            });
+            headRow += '</tr>';
+            tableHead.append(headRow);
+    
+            rows.forEach((row, rowIndex) => {
+                let bodyRow = '<tr>';
+                row.forEach((cell, cellIndex) => {
+                    bodyRow += `<td><input type="text" class="form-control" value="${cell}" data-id="${row[0]}" data-row-index="${rowIndex}" data-cell-index="${cellIndex}" data-column="${columns[cellIndex]}" /></td>`;
+                });
+                bodyRow += '</tr>';
+                tableBody.append(bodyRow);
+            });
+    
+            tableBody.attr('data-file-id', fileId);
+
+            console.log(`Finished populating table: ${tableId}`);
+            console.log('Updated table body element:', tableBody);
+        }
+    
+        window.saveTableData = async function saveTableData(table, tableBody) {
+            const tableBodyId = `${table.toLowerCase()}TableBody`;
+
+            console.log('tableBodyId:', tableBodyId);
+            console.log('tableBody:', tableBody);
+    
+            if (!tableBody.length) {
+                console.error(`Table body element with ID ${tableBodyId} not found`);
+                return;
+            }
+    
+            const fileId = tableBody.data('file-id');
+            const rows = tableBody.find('tr');
+
+            console.log('Saving table data...');
+            console.log('File ID:', fileId);
+            console.log('Rows:', rows);
+    
+            let updates;
+            if (table === 'Invoices') {
+                updates = {};
+                rows.each(function () {
+                    $(this).find('input').each(function () {
+                        updates[$(this).data('column')] = $(this).val();
+                    });
+                });
+            } else if (table === 'ExtractedData') {
+                updates = [];
+                rows.each(function () {
+                    const update = {};
+                    $(this).find('input').each(function () {
+                        update['id'] = $(this).data('id');
+                        update[$(this).data('column')] = $(this).val();
+                    });
+                    updates.push(update);
+                });
+            }
+
+            console.log('Updates:', updates);
+    
+            try {
+                const response = await fetch('http://127.0.0.1:8000/update_table/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        file_id: fileId,
+                        table: table,
+                        updates: updates
+                    })
+                });
+    
+                if (!response.ok) {
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+    
+                const result = await response.json();
+                alert(result.message);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error saving table data: ' + error.message);
+            }
+        }
+    
+        window.correctAndSave = function(table) {
+            console.log('Before correcting ID:', $('#extracteddataTableBody'));
+            if (table === 'ExtractedData') {
+                $('#extracteddataTableBody').attr('id', 'extractedDataTableBody');
+            }
+            console.log('After correcting ID:', $('#extractedDataTableBody'));
+            console.log('Corrected tableBody:', $('#extractedDataTableBody'));
+
+            const tableBody = $('#extractedDataTableBody');
+            console.log('tableBody just before save:', tableBody);
+
+            saveTableData(table, tableBody);
+        }
+    
+        window.generateUpdatedXlsx = async function generateUpdatedXlsx() {
+            const fileId = $('#extractedDataTableBody').data('file-id');
+            console.log('Generating XLSX for file ID:', fileId);
+            try {
+                const response = await fetch(`http://127.0.0.1:8000/generate_xlsx/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ file_id: fileId })
+                });
+    
+                if (!response.ok) {
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+    
+                const result = await response.json();
+                const downloadResponse = await fetch(`http://127.0.0.1:8000/${result.filename}`);
+                const blob = await downloadResponse.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = $('<a />', {
+                    'href': url,
+                    'download': result.filename
+                }).appendTo('body').get(0).click();
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error generating updated XLSX: ' + error.message);
+            }
+        }
+    });
+</script>
+</body>
+</html>

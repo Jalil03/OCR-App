@@ -1,0 +1,10 @@
+This is an ocr project with python to convert invoices (bank) to digital format 
+
+-> This is mvc logic , so in the Controller folder you will find 3 files , main the one that contains the ocr api , the "detecting_lines.py" that detects lines and tables in pdfs , and regex_patterns that contain some patterns 
+
+-> So to sum it up , main.py to lunch the ocr api (converting invoices to digital formats) , and the Detecting_lines.py to show another api of detecting lines from tables 
+
+
+NOTE : 
+
+    the Detecting_lines api is not finished yet , and it can make mistakes . Plus , this project now has a frontend with just some basic html , css and js , in the next update it will be with angular js . And to not forget this api is build with FastAPI .

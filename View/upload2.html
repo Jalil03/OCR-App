@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload de fichier</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.4.456/pdf.min.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .upload-container {
+            border: 2px dashed #007bff;
+            border-radius: 5px;
+            padding: 30px;
+            text-align: center;
+            position: relative;
+            min-height: 200px;
+            background-color: #fff;
+        }
+        .upload-container input[type="file"] {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+            height: 100%;
+            width: 100%;
+            top: 0;
+            left: 0;
+        }
+        .upload-icon {
+            font-size: 50px;
+            color: #007bff;
+        }
+        .upload-text {
+            font-size: 18px;
+            color: #007bff;
+        }
+        .btn-custom {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+        .btn-custom:hover {
+            background-color: #0056b3;
+            transform: scale(1.05);
+        }
+        .preview-container img,
+        .preview-container canvas {
+            max-width: 600px;
+            max-height: 600px;
+            display: block;
+            margin: 0 auto;
+        }
+        .loading-spinner {
+            display: none;
+            position: relative;
+            width: 100px;
+            height: 100px;
+            margin: 20px auto;
+        }
+        .loading-spinner:before, .loading-spinner:after {
+            content: "";
+            box-sizing: border-box;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100px;
+            height: 100px;
+            margin-top: -50px;
+            margin-left: -50px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            border-top-color: #007bff;
+        }
+        .loading-spinner:before {
+            z-index: 100;
+            animation: spin 1s infinite;
+        }
+        .loading-spinner:after {
+            border: 3px solid #007bff;
+            opacity: 0.5;
+        }
+        .loading-spinner .loading-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 16px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        #adminHomeButton {
+            display: none; /* Masquer par défaut */
+            margin-left: 10px; /* Ajout de la marge pour un espace */
+            background-color: #ff1500;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 50px; /* Ajouter des coins arrondis */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Ajouter une ombre */
+            transition: background-color 0.3s, transform 0.3s; /* Ajouter des transitions */
+        }
+        #adminHomeButton:hover {
+            background-color: #0056b3;
+            transform: scale(1.05); /* Ajouter un léger zoom au survol */
+        }
+        #user_id_display {
+            margin-top: 20px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+
+    </style>
+</head>
+<body>
+<div class="container mt-5">
+    <h1 class="text-center">Upload de fichier</h1>
+    <div class="text-right mb-3">
+        <button id="logoutButton" class="btn btn-danger">Deconnexion</button>
+    </div>
+    <div class="card card-body mb-3">
+        <form id="uploadForm">
+            <div class="upload-container">
+                <div class="upload-content">
+                    <i class="upload-icon">&#128194;</i>
+                    <p class="upload-text">Ajoutez votre fichier (image PNG, JPEG, JPG ou PDF) pour extraire les donnees.</p>
+                </div>
+                <div class="preview-container" style="display: none;">
+                    <img id="previewImage" src="#" alt="Aperçu de l'image">
+                    <canvas id="pdfPreview" style="display: none;"></canvas>
+                </div>
+                <input type="file" id="file" name="file" required>
+            </div>
+            <div class="text-center mt-3">
+                <button type="submit" class="btn btn-custom">Extraire</button>
+                <div class="loading-spinner" id="loadingSpinner">
+                    <div class="loading-text">JL</div>
+                </div>
+                <a id="lastFilesLink" class="btn btn-info" style="display: none;" href="/last_files">Voir les derniers fichiers</a>
+                <a id="dataPageLink" class="btn btn-success" style="display: none;" href="#">Go to data page</a>
+                <button id="adminHomeButton" onclick="window.location.href='/admin_home'">Admin Home</button>
+            </div>
+            
+            <div id="user_id_display"></div>
+        </form>
+        <div class="result mt-3" id="result" style="display: none;">
+            <h2>Resultat</h2>
+            <p id="resultText"></p>
+            <p id="fileIdText"></p>
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.4.1.js"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const userId = "{{user_id}}";
+        console.log("User ID:", userId);  // Afficher l'ID utilisateur dans la console
+        document.getElementById("user_id_display").innerText = `User ID: ${userId}`;
+        
+        // Afficher le bouton Admin Home si l'ID utilisateur est 1
+        if (userId === "1") {
+            document.getElementById("adminHomeButton").style.display = "block";
+        }
+    });
+
+    $(document).ready(function () {
+        // Vérifiez si l'utilisateur est authentifié
+        $.get('/api/current_user', function(data) {
+            if (!data.user_id) {
+                window.location.href = '/login';
+            }
+        }).fail(function() {
+            window.location.href = '/login';
+        });
+
+        // Effacer le localStorage lors du rechargement de la page, sauf si on navigue depuis une autre page
+        if (performance.navigation.type === 1 && !sessionStorage.getItem('navigatedFromOtherPage')) {
+            console.log("Page rechargée sans navigation depuis une autre page, suppression des données du localStorage.");
+            localStorage.removeItem('selectedFile');
+            localStorage.removeItem('buttonsVisible');
+            localStorage.removeItem('dataPageLinkVisible');
+            localStorage.removeItem('fileId');
+        }
+
+        // Réinitialiser la variable de session pour la navigation
+        sessionStorage.removeItem('navigatedFromOtherPage');
+
+        // Vérifier s'il y a un fichier sélectionné précédemment
+        const storedFile = localStorage.getItem('selectedFile');
+        const buttonsVisible = localStorage.getItem('buttonsVisible') === 'true';
+        const dataPageLinkVisible = localStorage.getItem('dataPageLinkVisible') === 'true';
+        const fileId = localStorage.getItem('fileId');
+
+        console.log("Récupération des données du localStorage:");
+        console.log("storedFile:", storedFile);
+        console.log("buttonsVisible:", buttonsVisible);
+        console.log("dataPageLinkVisible:", dataPageLinkVisible);
+        console.log("fileId:", fileId);
+
+        if (storedFile) {
+            const file = JSON.parse(storedFile);
+            if (file && file.data) {
+                displayFilePreview(file);
+                if (buttonsVisible) {
+                    console.log("Affichage du bouton Voir les derniers fichiers");
+                    $('#lastFilesLink').show();
+                }
+                if (dataPageLinkVisible && fileId) {
+                    console.log("Affichage du bouton Aller à la page des données");
+                    $('#dataPageLink').attr('href', `/data_page/${fileId}`).show();
+                }
+            }
+        }
+
+        $('#file').on('change', function (e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const fileInfo = {
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                data: null
+            };
+
+            const reader = new FileReader();
+            reader.onload = function (event) {
+                fileInfo.data = event.target.result;
+                localStorage.setItem('selectedFile', JSON.stringify(fileInfo));
+                console.log("Fichier sélectionné et stocké:", fileInfo);
+                displayFilePreview(fileInfo);
+                $('#lastFilesLink').show();
+                $('#dataPageLink').hide();
+                localStorage.setItem('buttonsVisible', 'true');
+                localStorage.setItem('dataPageLinkVisible', 'false');
+            };
+
+            if (file.type.startsWith('image/')) {
+                reader.readAsDataURL(file);
+            } else if (file.type === 'application/pdf') {
+                reader.readAsArrayBuffer(file);
+            }
+        });
+
+        function displayFilePreview(file) {
+            if (file.type.startsWith('image/')) {
+                $('#previewImage').attr('src', file.data).show();
+                $('#pdfPreview').hide();
+                $('.upload-content').hide();
+                $('.preview-container').show();
+            } else if (file.type === 'application/pdf') {
+                const pdfData = new Uint8Array(file.data);
+                const loadingTask = pdfjsLib.getDocument({data: pdfData});
+                loadingTask.promise.then(function(pdf) {
+                    pdf.getPage(1).then(function(page) {
+                        const scale = 1.5;
+                        const viewport = page.getViewport({scale: scale});
+
+                        const canvas = document.getElementById('pdfPreview');
+                        const context = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+
+                        const renderContext = {
+                            canvasContext: context,
+                            viewport: viewport
+                        };
+                        page.render(renderContext).promise.then(function() {
+                            $('#previewImage').hide();
+                            $('#pdfPreview').show();
+                            $('.upload-content').hide();
+                            $('.preview-container').show();
+                        });
+                    });
+                }, function (reason) {
+                    console.error(reason);
+                });
+            }
+        }
+
+        $('#uploadForm').on('submit', async function (e) {
+            e.preventDefault();
+            const fileInput = $('#file')[0];
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            $('#loadingSpinner').show();
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/process_file/', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('La réponse réseau n\'était pas correcte ' + response.statusText);
+                }
+
+                const result = await response.json();
+                console.log("Résultat reçu du serveur:", result);
+                $('#resultText').text(JSON.stringify(result, null, 2));
+                $('#result').show();
+                $('#fileIdText').text(`ID du fichier : ${result.file_id}`);
+                $('#dataPageLink').attr('href', `/data_page/${result.file_id}`).show();
+                $('#lastFilesLink').show(); // Rendre le lien visible
+                localStorage.setItem('buttonsVisible', 'true');
+                localStorage.setItem('dataPageLinkVisible', 'true');
+                localStorage.setItem('fileId', result.file_id);
+
+                // Déclencher le téléchargement du fichier Excel
+                const downloadLink = document.createElement('a');
+                downloadLink.href = result.download_link;
+                downloadLink.download = result.filename;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+
+                $('#loadingSpinner').hide();
+            } catch (error) {
+                console.error('Erreur :', error);
+                alert('Erreur lors du téléchargement du fichier : ' + error.message);
+                $('#loadingSpinner').hide();
+            }
+        });
+
+        // Détecter la navigation vers une autre page
+        $(document).on('click', 'a', function () {
+            // Conserver l'état des boutons lors de la navigation
+            console.log("Navigation détectée, mise à jour du localStorage.");
+            localStorage.setItem('buttonsVisible', $('#lastFilesLink').is(':visible'));
+            localStorage.setItem('dataPageLinkVisible', $('#dataPageLink').is(':visible'));
+            sessionStorage.setItem('navigatedFromOtherPage', 'true');
+        });
+
+        // Bouton de déconnexion
+        $('#logoutButton').on('click', async function () {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                localStorage.clear(); // Vider le localStorage lors de la déconnexion
+                sessionStorage.removeItem('navigatedFromOtherPage'); // Effacer le flag de navigation
+                window.location.href = '/login';
+            } catch (error) {
+                console.error('Erreur :', error);
+                alert('Erreur lors de la déconnexion : ' + error.message);
+            }
+        });
+    });
+</script>
+
+</body>
+</html>

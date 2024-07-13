@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Last Uploaded Files</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Arial', sans-serif;
+        }
+        
+        .container {
+            margin-top: 50px;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #007bff;
+        }
+        
+        .table {
+            width: 100%;
+            margin-bottom: 1rem;
+            color: #212529;
+            border-collapse: collapse;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .table th,
+        .table td {
+            padding: 12px;
+            vertical-align: middle;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .table thead th {
+            vertical-align: middle;
+            border-bottom: 2px solid #dee2e6;
+            background-color: #007bff;
+            color: white;
+        }
+        
+        .table tbody tr:nth-of-type(even) {
+            background-color: #f2f2f2;
+        }
+        
+        .table-hover tbody tr:hover {
+            color: #212529;
+            background-color: rgba(0, 0, 0, 0.075);
+        }
+        
+        .btn {
+            border-radius: 5px;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+        
+        .btn:hover {
+            transform: scale(1.05);
+        }
+        
+        .btn-info {
+            background-color: #17a2b8;
+            border: none;
+        }
+        
+        .btn-danger {
+            background-color: #dc3545;
+            border: none;
+        }
+        
+        .btn-secondary {
+            background-color: #6c757d;
+            border: none;
+        }
+        
+        .btn-info:hover {
+            background-color: #138496;
+        }
+        
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+        
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        
+    </style>
+</head>
+<body>
+<div class="container mt-5">
+    <h1 class="text-center">Last Uploaded Files</h1>
+    <div class="row">
+        <div class="col-md-6">
+            <h3 class="text-center">Table 1</h3>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="filesTableBody1"></tbody>
+            </table>
+        </div>
+        <div class="col-md-6">
+            <h3 class="text-center">Table 2</h3>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="filesTableBody2"></tbody>
+            </table>
+        </div>
+    </div>
+    <a href="/upload2" class="btn btn-secondary btn-block mt-3">Back to Upload Page</a>
+</div>
+<script src="https://code.jquery.com/jquery-3.4.1.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
+<script>
+    $(document).ready(function() {
+        fetchLastFiles();
+
+        async function fetchLastFiles() {
+            try {
+                const response = await fetch('/api/last_files');
+                const files = await response.json();
+                console.log(files);  // Ajoutez ce log pour vérifier les données
+                const tableBody1 = $('#filesTableBody1');
+                const tableBody2 = $('#filesTableBody2');
+                tableBody1.empty();
+                tableBody2.empty();
+                files.forEach((file, index) => {
+                    const tableBody = index % 2 === 0 ? tableBody1 : tableBody2;
+                    tableBody.append(`
+                        <tr>
+                            <td>${file.file_id}</td>
+                            <td>${file.name}</td>
+                            <td>${file.type}</td>
+                            <td>
+                                <a href="/data_page/${file.file_id}" class="btn btn-info">Edit</a>
+                                <button class="btn btn-danger" onclick="confirmDeleteFile(${file.file_id})">Delete</button>
+                            </td>
+                        </tr>
+                    `);
+                });
+            } catch (error) {
+                console.error('Error fetching files:', error);
+            }
+        }
+
+        window.confirmDeleteFile = function(fileId) {
+            $('#deleteFileModal').modal('show');
+            $('#confirmDeleteButton').off('click').on('click', function() {
+                deleteFile(fileId);
+            });
+        }
+
+        async function deleteFile(file_id) {
+            try {
+                const response = await fetch(`/api/delete_file/${file_id}`, {
+                    method: 'POST'
+                });
+                const result = await response.json();
+                $('#deleteFileModal').modal('hide');
+                fetchLastFiles();
+                toastr.success(result.message || 'File deleted successfully.');
+            } catch (error) {
+                console.error('Error deleting file:', error);
+                toastr.error('Error deleting file: ' + error.message);
+            }
+        }
+
+        // Rendre la fonction deleteFile accessible globalement
+        window.deleteFile = deleteFile;
+    });
+</script>
+
+<!-- Modal -->
+<div class="modal fade" id="deleteFileModal" tabindex="-1" role="dialog" aria-labelledby="deleteFileModalLabel" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteFileModalLabel">Delete File</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                Are you sure you want to delete this file?
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteButton">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

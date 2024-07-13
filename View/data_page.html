@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>File Data Viewer</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .container {
+            margin-top: 50px;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #007bff;
+        }
+
+        .card {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        .table {
+            width: 100%;
+            margin-bottom: 1rem;
+            color: #212529;
+            border-collapse: collapse;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .table th,
+        .table td {
+            padding: 12px;
+            vertical-align: middle;
+            border-top: 1px solid #dee2e6;
+        }
+
+        .table thead th {
+            vertical-align: middle;
+            border-bottom: 2px solid #dee2e6;
+            background-color: #007bff;
+            color: white;
+        }
+
+        .table tbody tr:nth-of-type(even) {
+            background-color: #f2f2f2;
+        }
+
+        .table-hover tbody tr:hover {
+            color: #212529;
+            background-color: rgba(0, 0, 0, 0.075);
+        }
+
+        .btn {
+            border-radius: 5px;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .btn-info {
+            background-color: #17a2b8;
+            border: none;
+        }
+
+        .btn-danger {
+            background-color: #dc3545;
+            border: none;
+        }
+
+        .btn-secondary {
+            background-color: #6c757d;
+            border: none;
+        }
+
+        .btn-info:hover {
+            background-color: #138496;
+        }
+
+        .btn-danger:hover {
+            background-color: #c82333;
+        }
+
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+    </style>
+</head>
+<body>
+<div class="container mt-5">
+    <h1 class="text-center">View and Edit File Data</h1>
+    <div id="result" class="mb-4">
+        <h2>Result</h2>
+        <p id="resultText"></p>
+    </div>
+    <div class="card card-body mb-3">
+        <h2>Invoices</h2>
+        <table class="table table-hover">
+            <thead id="invoicesTableHead"></thead>
+            <tbody id="invoicesTableBody"></tbody>
+        </table>
+        <button class="btn btn-info" onclick="saveTableData('Invoices', $('#invoicesTableBody'))">Save Invoices</button>
+    </div>
+    <div class="card card-body mb-3">
+        <h2>Extracted Data</h2>
+        <table class="table table-hover">
+            <thead id="extractedDataTableHead"></thead>
+            <tbody id="extractedDataTableBody"></tbody>
+        </table>
+        <button class="btn btn-info" onclick="correctAndSave('ExtractedData')">Save Extracted Data</button>
+    </div>
+    <button id="generateXlsxButton" class="btn btn-primary btn-block hidden" onclick="generateUpdatedXlsx()">Generate Updated XLSX</button>
+    <a href="/upload2" class="btn btn-secondary btn-block mt-3">Back to Upload Page</a> <!-- Back button -->
+</div>
+<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.bundle.min.js"></script>
+<script>
+    $(document).ready(function () {
+        const fileId = window.location.pathname.split('/').pop();
+        loadFileData(fileId);
+
+        async function loadFileData(fileId) {
+            const response = await fetch(`http://127.0.0.1:8000/get_file_data/${fileId}`);
+            const data = await response.json();
+
+            $('#resultText').text(`File ID: ${fileId}`);
+            populateTable('invoicesTable', data.invoices, fileId);
+            populateTable('extractedDataTable', data.extracted_data, fileId);
+            $('#generateXlsxButton').removeClass('hidden');
+        }
+
+        function populateTable(tableId, tableData, fileId) {
+            const tableHead = $(`#${tableId}Head`);
+            const tableBody = $(`#${tableId}Body`);
+            tableHead.empty();
+            tableBody.empty();
+
+            const columns = tableData.columns;
+            const rows = tableData.data;
+
+            let headRow = '<tr>';
+            columns.forEach(column => {
+                headRow += `<th>${column}</th>`;
+            });
+            headRow += '</tr>';
+            tableHead.append(headRow);
+
+            rows.forEach((row, rowIndex) => {
+                let bodyRow = '<tr>';
+                row.forEach((cell, cellIndex) => {
+                    bodyRow += `<td><input type="text" class="form-control" value="${cell}" data-id="${row[0]}" data-row-index="${rowIndex}" data-cell-index="${cellIndex}" data-column="${columns[cellIndex]}" /></td>`;
+                });
+                bodyRow += '</tr>';
+                tableBody.append(bodyRow);
+            });
+
+            tableBody.attr('data-file-id', fileId);
+        }
+
+        window.saveTableData = async function saveTableData(table, tableBody) {
+            const fileId = tableBody.data('file-id');
+            const rows = tableBody.find('tr');
+
+            let updates;
+            if (table === 'Invoices') {
+                updates = {};
+                rows.each(function () {
+                    $(this).find('input').each(function () {
+                        updates[$(this).data('column')] = $(this).val();
+                    });
+                });
+            } else if (table === 'ExtractedData') {
+                updates = [];
+                rows.each(function () {
+                    const update = {};
+                    $(this).find('input').each(function () {
+                        update['id'] = $(this).data('id');
+                        update[$(this).data('column')] = $(this).val();
+                    });
+                    updates.push(update);
+                });
+            }
+
+            try {
+                const response = await fetch('http://127.0.0.1:8000/update_table/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        file_id: fileId,
+                        table: table,
+                        updates: updates
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+
+                const result = await response.json();
+                toastr.success(result.message || 'Update successful');
+            } catch (error) {
+                console.error('Error:', error);
+                toastr.error('Error saving table data: ' + error.message);
+            }
+        }
+
+        window.correctAndSave = function(table) {
+            const tableBody = $('#extractedDataTableBody');
+            saveTableData(table, tableBody);
+        }
+
+        window.generateUpdatedXlsx = async function generateUpdatedXlsx() {
+            const fileId = $('#extractedDataTableBody').data('file-id');
+            try {
+                const response = await fetch(`http://127.0.0.1:8000/generate_xlsx/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ file_id: fileId })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok ' + response.statusText);
+                }
+
+                const result = await response.json();
+                const downloadResponse = await fetch(`http://127.0.0.1:8000/${result.filename}`);
+                const blob = await downloadResponse.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = $('<a />', {
+                    'href': url,
+                    'download': result.filename
+                }).appendTo('body').get(0).click();
+                window.URL.revokeObjectURL(url);
+            } catch (error) {
+                console.error('Error:', error);
+                toastr.error('Error generating updated XLSX: ' + error.message);
+            }
+        }
+    });
+</script>
+</body>
+</html>

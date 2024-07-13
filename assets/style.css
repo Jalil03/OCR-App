@@ -1,0 +1,199 @@
+body {
+    margin: 0;
+    font-family: 'Arial', sans-serif;
+    background-color: #f8f9fa;
+}
+
+.navbar {
+    background-color: white;
+    padding: 10px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #ddd;
+    height: 60px;
+}
+
+.navbar .logo {
+    display: flex;
+    align-items: center;
+}
+
+.navbar .logo img {
+    height: 40px;
+    width: 40px;
+    border-radius: 50%;
+    margin-right: 10px;
+}
+
+.navbar .nav-links {
+    display: flex;
+    align-items: center;
+}
+
+.navbar .nav-links a {
+    color: #007bff;
+    margin: 0 15px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: color 0.3s;
+}
+
+.navbar .nav-links a:hover {
+    color: #0056b3;
+}
+
+.hero {
+    background-color: #0033A0; /* Same as Xodo's hero section */
+    color: white;
+    text-align: left;
+    padding: 60px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 50vh; /* Adjust height */
+    background-size: cover;
+    background-position: center;
+}
+
+.hero-content {
+    max-width: 50%;
+}
+
+.hero-content h1 {
+    font-size: 3rem; /* Adjusted size */
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.hero-content p {
+    font-size: 1.25rem;
+    margin-bottom: 10px;
+}
+
+.hero-content .highlight {
+    color: #00d8ff; /* Updated color for emphasis */
+}
+
+.cta-buttons {
+    margin-top: 20px;
+    display: flex;
+}
+
+.cta-buttons a {
+    background-color: #ffffff;
+    color: #0033A0;
+    padding: 15px 30px;
+    margin-right: 10px;
+    border: 2px solid #0033A0;
+    border-radius: 50px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.cta-buttons a:hover {
+    background-color: #0033A0;
+    color: #ffffff;
+}
+
+/* Section Styles */
+.section {
+    background-color: white;
+    padding: 50px 20px;
+    text-align: center;
+}
+
+.section img {
+    max-width: 100px;
+    margin: 10px;
+}
+
+.features {
+    background-color: #f8f9fa;
+    padding: 50px 20px;
+    text-align: center;
+}
+
+.features h2 {
+    color: #1a2734;
+    font-size: 2rem;
+    margin-bottom: 20px;
+}
+
+.features p {
+    color: #333;
+    font-size: 1rem;
+    margin-bottom: 20px;
+}
+
+.features img {
+    max-width: 100px;
+    margin: 10px;
+}
+
+.footer {
+    background-color: #1a2734;
+    color: white;
+    padding: 20px;
+    text-align: center;
+}
+
+.footer p {
+    margin: 0;
+}
+
+.features {
+    padding: 50px 20px;
+    text-align: center;
+    background-color: #ffffff;
+}
+
+.features h2 {
+    color: #007bff;
+    margin-bottom: 20px;
+}
+
+.features p {
+    font-size: 1.25rem;
+    color: #333;
+    margin-bottom: 40px;
+}
+
+.feature-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+}
+
+.feature-item {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    width: 250px;
+    padding: 20px;
+    text-align: center;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.feature-item:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+}
+
+.feature-item img {
+    max-width: 100px;
+    height: auto;
+    margin-bottom: 20px;
+}
+
+.feature-item h3 {
+    color: #007bff;
+    margin-bottom: 10px;
+}
+
+.feature-item p {
+    color: #666;
+}
+
